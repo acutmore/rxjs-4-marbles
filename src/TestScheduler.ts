@@ -6,8 +6,8 @@ import { SubscriptionLog } from './SubscriptionLog';
 import { TestMessage } from './TestMessage';
 import { testMessageToRecord } from './conversion';
 
-type ColdObservable = any;
-type HotObservable = any;
+type ColdObservable = Rx.Observable<any>;
+type HotObservable = Rx.Subject<any>;
 
 export type observableToBeFn = (marbles: string, values?: any, errorValue?: any) => void;
 export type subscriptionLogsToBeFn = (marbles: string | string[]) => void
@@ -56,6 +56,15 @@ export function createTestScheduler(rx: typeof Rx, testScheduler: Rx.TestSchedul
             values?: any,
             error?: any
         ): HotObservable {
+            if (marbles.indexOf('!') !== -1) {
+                throw new Error('hot observable cannot have unsubscription marker "!"');
+            }
+            const messages = TestScheduler.parseMarbles(marbles, values, error);
+            const records = messages.map(testMessageToRecord(rx));
+            const hot = testScheduler.createHotObservable(...records);
+            const subject = new rx.Subject(); 
+            hot.subscribe(subject);
+            return subject;
         }
 
         static parseMarbles(
