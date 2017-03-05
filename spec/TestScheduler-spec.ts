@@ -3,14 +3,15 @@
 import {expect} from 'chai';
 import Rx = require('rx');
 import * as marbleTestingSignature from './helpers/marble-testing';
-import { TestScheduler } from '../src/TestScheduler';
+import { createTestScheduler } from '../src/TestScheduler';
+import { Notification } from '../src/Notification';
 
-const Notification = undefined; // TODO
+const TestScheduler = createTestScheduler(Rx);
 
 /** @test {TestScheduler} */
 describe('TestScheduler', () => {
   let 
-    rxTestScheduler: TestScheduler,
+    rxTestScheduler: any,
     time,
     hot,
     cold,
