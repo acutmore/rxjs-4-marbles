@@ -3,13 +3,15 @@
   "version": "0.0.1",
   "description": "ASCII marble diagrams for RxJs 4",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "build-spec": "tsc --project ./spec --pretty",
+    "test": "mocha ./spec-js/**/*-spec.js"
   },
   "license": "Apache-2.0",
   "devDependencies": {
     "@types/mocha": "^2.2.39",
     "chai": "^3.5.0",
     "mocha": "^3.2.0",
+    "rx": "^4.1.0",
     "typescript": "^2.2.1"
   }
 }

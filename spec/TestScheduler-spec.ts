@@ -1,19 +1,26 @@
+/// <reference path="../node_modules/rx/ts/rx.all.d.ts" />
+
 import {expect} from 'chai';
-import * as Rx from '../../dist/cjs/Rx';
-import marbleTestingSignature = require('../helpers/marble-testing'); // tslint:disable-line:no-require-imports
+import Rx = require('rx');
+import * as marbleTestingSignature from './helpers/marble-testing';
+import { TestScheduler } from '../src/TestScheduler';
 
-declare const { time };
-declare const hot: typeof marbleTestingSignature.hot;
-declare const cold: typeof marbleTestingSignature.cold;
-declare const expectObservable: typeof marbleTestingSignature.expectObservable;
-declare const expectSubscriptions: typeof marbleTestingSignature.expectSubscriptions;
-
-declare const rxTestScheduler: Rx.TestScheduler;
-const Notification = Rx.Notification;
-const TestScheduler = Rx.TestScheduler;
+const Notification = undefined; // TODO
 
 /** @test {TestScheduler} */
 describe('TestScheduler', () => {
+  let 
+    rxTestScheduler: TestScheduler,
+    time,
+    hot,
+    cold,
+    expectObservable,
+    expectSubscriptions;
+
+  beforeEach(() => {
+    rxTestScheduler = new TestScheduler(null);
+  });
+
   it('should exist', () => {
     expect(TestScheduler).exist;
     expect(TestScheduler).to.be.a('function');
@@ -115,7 +122,7 @@ describe('TestScheduler', () => {
       const expected = ['A', 'B'];
       const scheduler = new TestScheduler(null);
       const source = scheduler.createColdObservable('--a---b--|', { a: 'A', b: 'B' });
-      expect(source instanceof Rx.Observable).to.be.true;
+      expect(source instanceof (Rx.Observable as any)).to.be.true;
       source.subscribe((x: string) => {
         expect(x).to.equal(expected.shift());
       });

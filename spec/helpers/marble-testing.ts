@@ -1,11 +1,14 @@
-///<reference path='../../typings/index.d.ts'/>
-import {Observable} from '../../dist/cjs/Observable';
-import {SubscriptionLog} from '../../dist/cjs/testing/SubscriptionLog';
-import {ColdObservable} from '../../dist/cjs/testing/ColdObservable';
-import {HotObservable} from '../../dist/cjs/testing/HotObservable';
-import {observableToBeFn, subscriptionLogsToBeFn} from '../../dist/cjs/testing/TestScheduler';
+/// <reference path="../../node_modules/rx/ts/rx.all.d.ts" />
+
+import {SubscriptionLog} from '../../src/SubscriptionLog';
+import {observableToBeFn,subscriptionLogsToBeFn} from '../../src/TestScheduler';
 
 declare const global: any;
+
+type ColdObservable<T> = any;
+type HotObservable<T> = any;
+
+type Observable<T> = Rx.Observable<T>;
 
 export function hot(marbles: string, values?: any, error?: any): HotObservable<any> {
   if (!global.rxTestScheduler) {
