@@ -6,11 +6,10 @@ import * as marbleTestingSignature from './helpers/marble-testing';
 import { createTestScheduler } from '../src/TestScheduler';
 import { Notification } from '../src/Notification';
 
-const TestScheduler = createTestScheduler(Rx);
-
 /** @test {TestScheduler} */
 describe('TestScheduler', () => {
   let 
+    TestScheduler,
     rxTestScheduler: any,
     time,
     hot,
@@ -19,6 +18,8 @@ describe('TestScheduler', () => {
     expectSubscriptions;
 
   beforeEach(() => {
+    const rxjs4TestScheduler = new Rx.TestScheduler();
+    TestScheduler = createTestScheduler(Rx, rxjs4TestScheduler);
     rxTestScheduler = new TestScheduler(null);
   });
 
@@ -133,7 +134,7 @@ describe('TestScheduler', () => {
   });
 
   describe('createHotObservable()', () => {
-    it('should create a cold observable', () => {
+    it('should create a hot observable', () => {
       const expected = ['A', 'B'];
       const scheduler = new TestScheduler(null);
       const source = scheduler.createHotObservable('--a---b--|', { a: 'A', b: 'B' });

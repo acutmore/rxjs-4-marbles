@@ -3,10 +3,8 @@
 import { getColdObservableClass } from './ColdObservable'
 import { Notification } from './Notification';
 import { SubscriptionLog } from './SubscriptionLog';
-
-interface TestMessage {
-
-}
+import { TestMessage } from './TestMessage';
+import { testMessageToRecord } from './conversion';
 
 type ColdObservable = any;
 type HotObservable = any;
@@ -14,7 +12,7 @@ type HotObservable = any;
 export type observableToBeFn = (marbles: string, values?: any, errorValue?: any) => void;
 export type subscriptionLogsToBeFn = (marbles: string | string[]) => void
 
-export function createTestScheduler(rx: typeof Rx) {
+export function createTestScheduler(rx: typeof Rx, testScheduler: Rx.TestScheduler) {
     return class TestScheduler {
 
         private static frameTimeFactor: number = 10
@@ -33,7 +31,7 @@ export function createTestScheduler(rx: typeof Rx) {
         }
 
         flush() {
-            // TODO 
+            testScheduler.start();
         }
 
         createColdObservable(
@@ -41,6 +39,16 @@ export function createTestScheduler(rx: typeof Rx) {
             values?: any,
             error?: any
         ): ColdObservable {
+            if (marbles.indexOf('^') !== -1) {
+                throw new Error('cold observable cannot have subscription offset "^"');
+            }
+            if (marbles.indexOf('!') !== -1) {
+                throw new Error('cold observable cannot have unsubscription marker "!"');
+            }
+            const messages = TestScheduler.parseMarbles(marbles, values, error);
+            const records = messages.map(testMessageToRecord(rx));
+            const cold = testScheduler.createColdObservable(...records);
+            return cold;
         }
 
         createHotObservable(
