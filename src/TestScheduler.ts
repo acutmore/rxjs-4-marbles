@@ -112,7 +112,52 @@ export function createTestScheduler(rx: typeof Rx) {
         static parseMarblesAsSubscriptions(
             marbles: string
         ): SubscriptionLog {
-            return new SubscriptionLog(-1, -1); // TODO - implement stub
+            if (typeof marbles !== 'string') {
+                return new SubscriptionLog(Number.POSITIVE_INFINITY);
+            }
+            const len = marbles.length;
+            let groupStart = -1;
+            let subscriptionFrame = Number.POSITIVE_INFINITY;
+            let unsubscriptionFrame = Number.POSITIVE_INFINITY;
+
+            for (let i = 0; i < len; i++) {
+                const frame = i * this.frameTimeFactor;
+                const c = marbles[i];
+                switch (c) {
+                    case '-':
+                    case ' ':
+                        break;
+                    case '(':
+                        groupStart = frame;
+                        break;
+                    case ')':
+                        groupStart = -1;
+                        break;
+                    case '^':
+                        if (subscriptionFrame !== Number.POSITIVE_INFINITY) {
+                            throw new Error('found a second subscription point \'^\' in a ' +
+                                'subscription marble diagram. There can only be one.');
+                        }
+                        subscriptionFrame = groupStart > -1 ? groupStart : frame;
+                        break;
+                    case '!':
+                        if (unsubscriptionFrame !== Number.POSITIVE_INFINITY) {
+                            throw new Error('found a second subscription point \'^\' in a ' +
+                                'subscription marble diagram. There can only be one.');
+                        }
+                        unsubscriptionFrame = groupStart > -1 ? groupStart : frame;
+                        break;
+                    default:
+                        throw new Error('there can only be \'^\' and \'!\' markers in a ' +
+                            'subscription marble diagram. Found instead \'' + c + '\'.');
+                }
+            }
+
+            if (unsubscriptionFrame < 0) {
+                return new SubscriptionLog(subscriptionFrame);
+            } else {
+                return new SubscriptionLog(subscriptionFrame, unsubscriptionFrame);
+            }
         }
     }
 }
