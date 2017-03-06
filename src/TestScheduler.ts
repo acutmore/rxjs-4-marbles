@@ -16,6 +16,7 @@ export interface ITestScheduler {
     createColdObservable(marbles: string, values?: any, error?: any): Rx.Observable<any>;
     createHotObservable(marbles: string, values?: any, error?: any): Rx.Observable<any>;
     expectObservable(observable: Rx.Observable<any>, unsubscriptionMarbles?: string): ({ toBe: observableToBeFn });
+    expectSubscriptions(actualSubscriptionLogs: SubscriptionLog[]): ({ toBe: subscriptionLogsToBeFn });
 }
 
 export interface TestSchedulerStatic {
