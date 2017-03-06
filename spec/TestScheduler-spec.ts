@@ -21,6 +21,12 @@ describe('TestScheduler', () => {
     const rxjs4TestScheduler = new Rx.TestScheduler();
     TestScheduler = createTestScheduler(Rx, rxjs4TestScheduler);
     rxTestScheduler = new TestScheduler(null);
+
+    time = rxTestScheduler.createTime.bind(rxTestScheduler);
+    hot = rxTestScheduler.createHotObservable.bind(rxTestScheduler);
+    cold = rxTestScheduler.createColdObservable.bind(rxTestScheduler);
+    expectObservable = rxTestScheduler.expectObservable.bind(rxTestScheduler);
+    expectSubscriptions = rxTestScheduler.expectSubscriptions.bind(rxTestScheduler);
   });
 
   it('should exist', () => {

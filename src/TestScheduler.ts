@@ -9,6 +9,12 @@ import { testMessageToRecord } from './conversion';
 type ColdObservable = Rx.Observable<any>;
 type HotObservable = Rx.Subject<any>;
 
+interface FlushableTest {
+    ready: boolean;
+    actual?: any[];
+    expected?: any[];
+}
+
 export type observableToBeFn = (marbles: string, values?: any, errorValue?: any) => void;
 export type subscriptionLogsToBeFn = (marbles: string | string[]) => void
 
@@ -16,6 +22,8 @@ export function createTestScheduler(rx: typeof Rx, testScheduler: Rx.TestSchedul
     return class TestScheduler {
 
         private static frameTimeFactor: number = 10
+
+        private flushTests: FlushableTest[] = []
 
         constructor(
             public assertDeepEqual: (actual: any, expected: any) => boolean | void
@@ -31,7 +39,18 @@ export function createTestScheduler(rx: typeof Rx, testScheduler: Rx.TestSchedul
         }
 
         flush() {
-            testScheduler.start();
+            // const hotObservables = this.hotObservables;
+            // while (hotObservables.length > 0) {
+            //     hotObservables.shift().setup();
+            // }
+
+            testScheduler.start(); //previously super.flush()
+
+            const readyFlushTests = this.flushTests.filter(test => test.ready);
+            while (readyFlushTests.length > 0) {
+                const test = readyFlushTests.shift();
+                this.assertDeepEqual(test.actual, test.expected);
+            }
         }
 
         createColdObservable(
@@ -62,9 +81,84 @@ export function createTestScheduler(rx: typeof Rx, testScheduler: Rx.TestSchedul
             const messages = TestScheduler.parseMarbles(marbles, values, error);
             const records = messages.map(testMessageToRecord(rx));
             const hot = testScheduler.createHotObservable(...records);
-            const subject = new rx.Subject(); 
+            const subject = new rx.Subject();
             hot.subscribe(subject);
             return subject;
+        }
+
+        expectObservable(
+            observable: Rx.Observable<any>,
+            unsubscriptionMarbles: string = null
+        ): ({ toBe: observableToBeFn }) {
+            const actual: TestMessage[] = [];
+            const flushTest: FlushableTest = { actual, ready: false, expected: undefined };
+            const unsubscriptionFrame = TestScheduler
+                .parseMarblesAsSubscriptions(unsubscriptionMarbles).unsubscribedFrame;
+            let subscription: Rx.IDisposable;
+
+            testScheduler.schedule({}, (scheduler, state) => {
+                subscription = observable.subscribe(x => {
+                    let value = x;
+                    // Support Observable-of-Observables
+                    if (x instanceof (rx.Observable as any)) {
+                        value = this.materializeInnerObservable(value, testScheduler.now());
+                    }
+                    actual.push({ frame: testScheduler.now(), notification: Notification.createNext(value) });
+                }, (err) => {
+                    actual.push({ frame: testScheduler.now(), notification: Notification.createError(err) });
+                }, () => {
+                    actual.push({ frame: testScheduler.now(), notification: Notification.createComplete() });
+                });
+                return subscription;
+            });
+
+            if (unsubscriptionFrame !== Number.POSITIVE_INFINITY) {
+                testScheduler.scheduleFuture(
+                    {},
+                    unsubscriptionFrame,
+                    () => (subscription.dispose(),rx.Disposable.empty)
+                );
+            }
+
+            this.flushTests.push(flushTest);
+
+            return {
+                toBe(marbles: string, values?: any, errorValue?: any) {
+                    flushTest.ready = true;
+                    flushTest.expected = TestScheduler.parseMarbles(marbles, values, errorValue, true);
+                }
+            };
+        }
+
+        expectSubscriptions(
+            actualSubscriptionLogs: SubscriptionLog[]
+        ): ({ toBe: subscriptionLogsToBeFn }) {
+            const flushTest: FlushableTest = { actual: actualSubscriptionLogs, ready: false, expected: undefined };
+            this.flushTests.push(flushTest);
+            return {
+                toBe(marbles: string | string[]) {
+                    const marblesArray: string[] = (typeof marbles === 'string') ? [marbles] : marbles;
+                    flushTest.ready = true;
+                    flushTest.expected = marblesArray.map(marbles =>
+                        TestScheduler.parseMarblesAsSubscriptions(marbles)
+                    );
+                }
+            };
+        }
+
+        private materializeInnerObservable(
+            observable: Rx.Observable<any>,
+            outerFrame: number
+        ): TestMessage[] {
+            const messages: TestMessage[] = [];
+            observable.subscribe((value) => {
+                messages.push({ frame: testScheduler.now() - outerFrame, notification: Notification.createNext(value) });
+            }, (err) => {
+                messages.push({ frame: testScheduler.now() - outerFrame, notification: Notification.createError(err) });
+            }, () => {
+                messages.push({ frame: testScheduler.now() - outerFrame, notification: Notification.createComplete() });
+            });
+            return messages;
         }
 
         static parseMarbles(
