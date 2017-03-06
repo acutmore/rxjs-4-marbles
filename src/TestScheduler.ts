@@ -1,13 +1,8 @@
 /// <reference path="../node_modules/rx/ts/rx.all.d.ts" />
 
-import { getColdObservableClass } from './ColdObservable'
 import { Notification } from './Notification';
 import { SubscriptionLog } from './SubscriptionLog';
 import { TestMessage } from './TestMessage';
-import { testMessageToRecord } from './conversion';
-
-type ColdObservable = Rx.Observable<any>;
-type HotObservable = Rx.Subject<any>;
 
 interface FlushableTest {
     ready: boolean;
@@ -15,11 +10,25 @@ interface FlushableTest {
     expected?: any[];
 }
 
+export interface ITestScheduler {
+    createTime(marbles: string): number;
+    flush(): void;
+    createColdObservable(marbles: string, values?: any, error?: any): Rx.Observable<any>;
+    createHotObservable(marbles: string, values?: any, error?: any): Rx.Observable<any>;
+    expectObservable(observable: Rx.Observable<any>, unsubscriptionMarbles?: string): ({ toBe: observableToBeFn });
+}
+
+export interface TestSchedulerStatic {
+    new(assertDeepEqual: (actual: any, expected: any) => boolean | void): ITestScheduler;
+    parseMarbles(marbles: string, values?: any, errorValue?: any, materializeInnerObservables?: boolean): TestMessage[];
+    parseMarblesAsSubscriptions(marbles: string): SubscriptionLog;
+}
+
 export type observableToBeFn = (marbles: string, values?: any, errorValue?: any) => void;
 export type subscriptionLogsToBeFn = (marbles: string | string[]) => void
 
-export function createTestScheduler(rx: typeof Rx, testScheduler: Rx.TestScheduler) {
-    return class TestScheduler {
+export function createTestScheduler(rx: typeof Rx, testScheduler: Rx.TestScheduler): TestSchedulerStatic {
+    return class TestScheduler implements ITestScheduler {
 
         private static frameTimeFactor: number = 10
 
@@ -38,7 +47,7 @@ export function createTestScheduler(rx: typeof Rx, testScheduler: Rx.TestSchedul
             return indexOf * TestScheduler.frameTimeFactor;
         }
 
-        flush() {
+        flush(): void {
             // const hotObservables = this.hotObservables;
             // while (hotObservables.length > 0) {
             //     hotObservables.shift().setup();
@@ -57,7 +66,7 @@ export function createTestScheduler(rx: typeof Rx, testScheduler: Rx.TestSchedul
             marbles: string,
             values?: any,
             error?: any
-        ): ColdObservable {
+        ): Rx.Observable<any> {
             if (marbles.indexOf('^') !== -1) {
                 throw new Error('cold observable cannot have subscription offset "^"');
             }
@@ -74,7 +83,7 @@ export function createTestScheduler(rx: typeof Rx, testScheduler: Rx.TestSchedul
             marbles: string,
             values?: any,
             error?: any
-        ): HotObservable {
+        ): Rx.Observable<any> {
             if (marbles.indexOf('!') !== -1) {
                 throw new Error('hot observable cannot have unsubscription marker "!"');
             }
@@ -271,4 +280,20 @@ export function createTestScheduler(rx: typeof Rx, testScheduler: Rx.TestSchedul
             }
         }
     }
+}
+
+function getColdObservableClass(rx: typeof Rx) {
+    const ts = new rx.TestScheduler();
+    const co = ts.createColdObservable();
+    return co.constructor;
+}
+
+function testMessageToRecord(rx: typeof Rx) {
+    return function (msg: TestMessage): Rx.Recorded {
+        return msg.notification.do(
+            (value) => rx.ReactiveTest.onNext(msg.frame, value),
+            (error) => rx.ReactiveTest.onError(msg.frame, error),
+            () => rx.ReactiveTest.onCompleted(msg.frame)
+        );
+    };
 }
