@@ -6,7 +6,7 @@ import { createTestScheduler, TestSchedulerStatic, ITestScheduler } from '../src
 import { Notification } from '../src/Notification';
 
 /** @test {TestScheduler} */
-describe('TestScheduler', () => {
+describe('rxjs 5 TestScheduler', () => {
   let 
     TestScheduler: TestSchedulerStatic,
     rxTestScheduler: ITestScheduler,
