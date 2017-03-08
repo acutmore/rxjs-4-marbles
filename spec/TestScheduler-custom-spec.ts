@@ -2,15 +2,14 @@
 
 import { expect } from 'chai';
 import Rx = require('rx');
-import { createTestScheduler, TestSchedulerStatic, ITestScheduler } from '../src/TestScheduler';
+import { TestScheduler } from '../src/TestScheduler';
 import { Notification } from '../src/Notification';
 
 /** @test {TestScheduler} */
 describe('custom TestScheduler', () => {
   let
     rxjs4TestScheduler: Rx.TestScheduler,
-    TestScheduler: TestSchedulerStatic,
-    rxTestScheduler: ITestScheduler,
+    rxTestScheduler: TestScheduler,
     time,
     hot,
     cold,
@@ -21,11 +20,15 @@ describe('custom TestScheduler', () => {
         onCompleted = Rx.ReactiveTest.onCompleted,
         subscribe = Rx.ReactiveTest.subscribe;
 
+  beforeEach(function() {
+    rxTestScheduler = TestScheduler.default();
+    rxjs4TestScheduler = rxTestScheduler.scheduler;
 
-  beforeEach(() => {
-    rxjs4TestScheduler = new Rx.TestScheduler();
-    TestScheduler = createTestScheduler(Rx, rxjs4TestScheduler);
-    rxTestScheduler = new TestScheduler(null);
+    const test = this.currentTest.fn;
+    this.currentTest.fn = function() {
+      test();
+      rxTestScheduler.flush();        
+    };
 
     time = rxTestScheduler.createTime.bind(rxTestScheduler);
     hot = rxTestScheduler.createHotObservable.bind(rxTestScheduler);

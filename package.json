@@ -13,5 +13,11 @@
     "mocha": "^3.2.0",
     "rx": "^4.1.0",
     "typescript": "^2.2.1"
+  },
+  "dependencies": {
+    "lodash.isequal": "^4.5.0"
+  },
+  "peerDependencies": {
+    "rx": "^4.1.0"
   }
 }

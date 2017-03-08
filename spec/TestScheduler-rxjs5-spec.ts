@@ -2,24 +2,27 @@
 
 import {expect} from 'chai';
 import Rx = require('rx');
-import { createTestScheduler, TestSchedulerStatic, ITestScheduler } from '../src/TestScheduler';
+import { TestScheduler } from '../src/TestScheduler';
 import { Notification } from '../src/Notification';
 
 /** @test {TestScheduler} */
 describe('rxjs 5 TestScheduler', () => {
   let 
-    TestScheduler: TestSchedulerStatic,
-    rxTestScheduler: ITestScheduler,
+    rxTestScheduler: TestScheduler,
     time,
     hot,
     cold,
     expectObservable,
     expectSubscriptions;
 
-  beforeEach(() => {
-    const rxjs4TestScheduler = new Rx.TestScheduler();
-    TestScheduler = createTestScheduler(Rx, rxjs4TestScheduler);
-    rxTestScheduler = new TestScheduler(null);
+  beforeEach(function() {
+    rxTestScheduler = TestScheduler.default()
+
+    const test = this.currentTest.fn;
+    this.currentTest.fn = function() {
+      test();
+      rxTestScheduler.flush();        
+    };
 
     time = rxTestScheduler.createTime.bind(rxTestScheduler);
     hot = rxTestScheduler.createHotObservable.bind(rxTestScheduler);
@@ -111,13 +114,13 @@ describe('rxjs 5 TestScheduler', () => {
 
   describe('createTime()', () => {
     it('should parse a simple time marble string to a number', () => {
-      const scheduler = new TestScheduler(null);
+      const scheduler = TestScheduler.default(); 
       const time = scheduler.createTime('-----|');
       expect(time).to.equal(50);
     });
 
     it('should throw if not given good marble input', () => {
-      const scheduler = new TestScheduler(null);
+      const scheduler = TestScheduler.default();
       expect(() => {
         scheduler.createTime('-a-b-#');
       }).to.throw();
@@ -127,7 +130,7 @@ describe('rxjs 5 TestScheduler', () => {
   describe('createColdObservable()', () => {
     it('should create a cold observable', () => {
       const expected = ['A', 'B'];
-      const scheduler = new TestScheduler(null);
+      const scheduler = TestScheduler.default() 
       const source = scheduler.createColdObservable('--a---b--|', { a: 'A', b: 'B' });
       expect(source instanceof (Rx.Observable as any)).to.be.true;
       source.subscribe((x: string) => {
@@ -141,7 +144,7 @@ describe('rxjs 5 TestScheduler', () => {
   describe('createHotObservable()', () => {
     it('should create a hot observable', () => {
       const expected = ['A', 'B'];
-      const scheduler = new TestScheduler(null);
+      const scheduler = TestScheduler.default();
       const source = scheduler.createHotObservable('--a---b--|', { a: 'A', b: 'B' });
       expect(source).to.be.an.instanceof(Rx.Subject);
       source.subscribe((x: string) => {
