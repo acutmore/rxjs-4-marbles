@@ -75,7 +75,7 @@ export class TestScheduler {
         const messages = TestScheduler.parseMarbles(marbles, values, error);
         const records = messages.map(testMessageToRecord(rx));
         const cold = this.scheduler.createColdObservable(...records);
-        return cold;
+        return logSubscription(rx, this.scheduler, cold);
     }
 
     createHotObservable(
@@ -104,7 +104,8 @@ export class TestScheduler {
             .parseMarblesAsSubscriptions(unsubscriptionMarbles).unsubscribedFrame;
         let subscription: Rx.IDisposable;
 
-        // this.scheduler.schedule({}, (scheduler, state) => {
+        (this.scheduler as any).clock -= 1; // RxJS 4 always schedules delay + 1
+        this.scheduler.schedule({}, (scheduler, state) => {
             subscription = observable.subscribe(x => {
                 let value = x;
                 // Support Observable-of-Observables
@@ -117,8 +118,9 @@ export class TestScheduler {
             }, () => {
                 actual.push({ frame: this.scheduler.now(), notification: Notification.createComplete() });
             });
-            // return subscription;
-        // });
+            return subscription;
+        });
+        (this.scheduler as any).clock += 1;
 
         if (unsubscriptionFrame !== Number.POSITIVE_INFINITY) {
             this.scheduler.scheduleFuture(
@@ -187,8 +189,9 @@ export class TestScheduler {
             (x: any) => x :
             (x: any) => {
                 // Support Observable-of-Observables
-                if (materializeInnerObservables && values[x] instanceof getColdObservableClass(rx)) {
-                    return values[x].messages;
+                // if (materializeInnerObservables && values[x] instanceof getColdObservableClass(rx)) {
+                if (materializeInnerObservables && values[x].subscribe && values[x].messages) {
+                    return values[x].messages.map(recordToTestMessage(rx));
                 }
                 return values[x];
             };
@@ -294,4 +297,39 @@ function testMessageToRecord(rx: typeof Rx) {
             () => rx.ReactiveTest.onCompleted(msg.frame)
         );
     };
+}
+
+function recordToTestMessage(rx: typeof Rx) {
+    return function (msg: Rx.Recorded): TestMessage {
+        let n: Notification<any>;
+
+        (msg.value as Rx.Notification<any>).accept(
+            value => n = Notification.createNext(value),
+            err => n = Notification.createError(err),
+            () => n = Notification.createComplete(),
+        );
+
+        return {
+           frame: msg.time,
+           notification: n
+        };
+    };
+}
+
+function logSubscription<T>(rx: typeof Rx, scheduler: Rx.IScheduler, obs: Rx.Observable<T>): Rx.Observable<T> {
+    const subscriptions: SubscriptionLog[] = [];
+    const so = rx.Observable.create<T>(observer => {
+        const sl = new SubscriptionLog(scheduler.now());
+        const index = subscriptions.push(sl) - 1;
+        const sub = obs.subscribe(observer);
+        return () => {
+            subscriptions[index].unsubscribedFrame = scheduler.now();
+            sub.dispose();
+        };
+    });
+    (so as any).subscriptions = subscriptions;
+    // if (obs instanceof getColdObservableClass(rx)) {
+        (so as any).messages = (obs as any).messages;
+    // }
+    return so;
 }
